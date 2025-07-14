@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "3gpp-document-downloader": {
+      "command": "/Users/yungeon-u/Desktop/Project/3GPPdocdownload/.venv/bin/python",
+      "args": ["/Users/yungeon-u/Desktop/Project/3GPPdocdownload/mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "/Users/yungeon-u/Desktop/Project/3GPPdocdownload"
+      }
+    }
+  }
+} 
