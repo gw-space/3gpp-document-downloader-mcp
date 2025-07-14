@@ -217,13 +217,13 @@ def check_3gpp_link(spec: str, release: str) -> str:
 
 
 @mcp.tool()
-def download_3gpp_document(download_id: str, output_dir: str = "./3GPP_spec") -> str:
+def download_3gpp_document(download_id: str, output_dir: str = "./downloads") -> str:
     """
     Download and extract a 3GPP specification document using a download ID from check_3gpp_link.
 
     Args:
         download_id (str): Download ID from check_3gpp_link.
-        output_dir (str, optional): Directory to save the extracted files. Defaults to "./3GPP_spec".
+        output_dir (str, optional): Directory to save the extracted files. Defaults to "./downloads".
 
     Returns:
         str: Download result with progress information and extracted files.

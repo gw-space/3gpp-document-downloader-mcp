@@ -119,7 +119,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("spec", help="e.g., TS 24.301")
     parser.add_argument("release", help="e.g., Rel-16")
-    parser.add_argument("--output", default="./3GPP_spec", help="Output folder")
+    parser.add_argument("--output", default="./downloads", help="Output folder")
     args = parser.parse_args()
 
     series, number, _ = parse_spec_number(args.spec)
