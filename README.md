@@ -159,13 +159,6 @@ Add the following to your Claude Desktop `mcp_config.json`:
 │   ├── 38331-i60.zip     # Downloaded ZIP file
 │   ├── 38331-i60.docx    # Extracted DOCX file
 │   └── ...
-├── test_output/           # Test output directory
-│   ├── 23501-gk0.zip     # Test downloaded files
-│   ├── 23501-gk0.docx    # Test extracted files
-│   └── ...
-├── test_output_23_501/    # Specific test output for TS 23.501
-│   ├── 23501-gk0.zip     # Test files for TS 23.501
-│   └── 23501-gk0.docx    # Extracted test files
 └── .venv/                 # Virtual environment (if created)
 ```
 
