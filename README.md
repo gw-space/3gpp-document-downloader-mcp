@@ -50,7 +50,7 @@ python 3gpp_downloader.py "TS 38.331" "Rel-18"
 
 - `spec`: 3GPP spec number (e.g., "TS 24.301", "TS 38.101-1")
 - `release`: Release number (e.g., "Rel-16", "Rel-17", "Rel-18")
-- `--output`: Output folder (default: "./3GPP_spec")
+- `--output`: Output folder (default: "./downloads")
 
 #### Examples
 
@@ -108,7 +108,7 @@ Add the following to your Claude Desktop `mcp_config.json`:
 2. **`download_3gpp_document`**: Download a document using the Download ID
    - Parameters:
      - `download_id`: Download ID returned from `check_3gpp_link`
-     - `output_dir`: Output directory (optional, default: "./3GPP_spec")
+     - `output_dir`: Output directory (optional, default: "./downloads")
    - Returns: Download result and list of extracted files
 
 3. **`list_available_specs`**: List available specs and releases
@@ -148,16 +148,25 @@ Add the following to your Claude Desktop `mcp_config.json`:
 ## Project Structure
 
 ```
-3GPPdocdownload/
+3gpp-document-downloader-mcp/
 ├── 3gpp_downloader.py     # CLI tool (standalone)
 ├── mcp_server.py          # FastMCP server (Claude Desktop integration)
 ├── mcp_config.json        # MCP configuration file
 ├── requirements.txt       # Python dependencies
 ├── README.md              # Project documentation
-└── 3GPP_spec/             # Downloaded document storage
-    ├── 38331-i60.zip      # Downloaded ZIP file
-    ├── 38331-i60.pdf      # Extracted PDF file
-    └── ...
+├── LICENSE                # MIT License
+├── downloads/             # Downloaded document storage (default)
+│   ├── 38331-i60.zip     # Downloaded ZIP file
+│   ├── 38331-i60.docx    # Extracted DOCX file
+│   └── ...
+├── test_output/           # Test output directory
+│   ├── 23501-gk0.zip     # Test downloaded files
+│   ├── 23501-gk0.docx    # Test extracted files
+│   └── ...
+├── test_output_23_501/    # Specific test output for TS 23.501
+│   ├── 23501-gk0.zip     # Test files for TS 23.501
+│   └── 23501-gk0.docx    # Extracted test files
+└── .venv/                 # Virtual environment (if created)
 ```
 
 ## Requirements
