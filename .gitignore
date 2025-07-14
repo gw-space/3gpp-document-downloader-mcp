@@ -5,6 +5,9 @@
 *.docx
 *.pdf
 
+# MCP Configuration
+mcp_config.json
+
 # Python
 __pycache__/
 *.py[cod]
