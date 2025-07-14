@@ -123,7 +123,7 @@ Add the following to your Claude Desktop `mcp_config.json`:
 1. check_3gpp_link("TS 38.331", "Rel-18")
    → Returns Download ID
 
-2. download_3gpp_document(download_id, "./3GPP_spec")
+2. download_3gpp_document(download_id, "./downloads")
    → Download and extraction complete
 ```
 
@@ -169,27 +169,6 @@ Add the following to your Claude Desktop `mcp_config.json`:
 - beautifulsoup4>=4.9.3
 - lxml>=4.6.3
 - fastmcp>=2.10.0
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Could not find ZIP file" error**
-   - The spec-release combination may not exist in the 3GPP archive
-   - Use the `list_available_specs` tool to check available releases
-
-2. **Download failed**
-   - Check your network connection
-   - Check the status of the 3GPP server
-
-3. **MCP server connection failed**
-   - Make sure your virtual environment is activated
-   - Check that the Python path in `mcp_config.json` is correct
-
-### Checking Logs
-
-- CLI tool: Output is printed directly to the terminal
-- MCP server: Check the MCP logs in Claude Desktop
 
 ## License
 
