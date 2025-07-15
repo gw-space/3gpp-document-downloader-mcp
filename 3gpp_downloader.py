@@ -101,7 +101,7 @@ def find_spec_zip_link(series, number, rel_suffix):
 def download_and_extract(zip_url, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     local_zip = os.path.join(output_dir, os.path.basename(urlparse(zip_url).path))
-    with requests.get(zip_url, stream=True) as r:
+    with requests.get(zip_url, stream=True, timeout=600) as r:  # 10분 timeout
         r.raise_for_status()
         with open(local_zip, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):

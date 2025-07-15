@@ -109,7 +109,7 @@ def download_and_extract(zip_url, output_dir, log=None):
     local_zip = os.path.join(output_dir, os.path.basename(urlparse(zip_url).path))
     log.append(f"📁 Saving to: {local_zip}")
 
-    with requests.get(zip_url, stream=True) as r:
+    with requests.get(zip_url, stream=True, timeout=600) as r:  # 10분 timeout
         r.raise_for_status()
         total_size = int(r.headers.get("content-length", 0))
         downloaded_size = 0
@@ -236,7 +236,7 @@ def download_3gpp_document(download_id: str, output_dir: str = "./downloads") ->
         zip_link = info["zip_link"]
 
         # Get file size first
-        with requests.get(zip_link, stream=True) as r:
+        with requests.get(zip_link, stream=True, timeout=600) as r:  # 10분 timeout
             r.raise_for_status()
             total_size = int(r.headers.get("content-length", 0))
 
@@ -245,7 +245,7 @@ def download_3gpp_document(download_id: str, output_dir: str = "./downloads") ->
         local_zip = os.path.join(output_dir, os.path.basename(urlparse(zip_link).path))
 
         downloaded_size = 0
-        with requests.get(zip_link, stream=True) as r:
+        with requests.get(zip_link, stream=True, timeout=600) as r:  # 10분 timeout
             r.raise_for_status()
             with open(local_zip, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
