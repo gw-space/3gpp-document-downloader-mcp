@@ -8,6 +8,7 @@ import os
 import re
 import time
 import requests
+import threading
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup, Tag
 import zipfile
@@ -46,8 +47,7 @@ def find_spec_zip_link(series, number, rel_suffix):
     doc_dir = f"{series}.{number}"
     doc_url = urljoin(base_url, doc_dir + "/")
 
-    print(f"Search URL: {doc_url}")
-    print(f"Looking for release suffix: {rel_suffix}")
+    # Search URL and release suffix info
 
     r = requests.get(doc_url)
     r.raise_for_status()
@@ -71,19 +71,9 @@ def find_spec_zip_link(series, number, rel_suffix):
                         rel_suffix[:1]
                     ):  # first char matches release
                         candidates.append(href)
-                        print(
-                            f"Release candidate ZIP: {href} (version code: {version_code})"
-                        )
 
     if not candidates:
-        print(f"No ZIP file found starting with release {rel_suffix[:1]}")
-        all_zips = []
-        for a in soup.find_all("a", href=True):
-            if isinstance(a, Tag):
-                href = a.get("href")
-                if isinstance(href, str) and href.endswith(".zip"):
-                    all_zips.append(href)
-        print(f"Available ZIP files: {all_zips[:10]}...")  # Show first 10 only
+        # No ZIP file found starting with release
         return None
 
     # Select the latest version (largest base-36 value)
@@ -96,77 +86,74 @@ def find_spec_zip_link(series, number, rel_suffix):
             return 0
 
     latest = max(candidates, key=extract_version)
-    print(f"Latest ZIP: {latest}")
     return urljoin(doc_url, latest)
 
 
-def download_and_extract(zip_url, output_dir, log=None):
-    if log is None:
-        log = []
+def download_and_extract(zip_url, output_dir, task_id):
+    """Background download and extract function"""
+    try:
+        background_tasks[task_id] = {
+            "status": "running",
+            "progress": "Starting download...",
+        }
 
-    log.append(f"📥 Downloading ZIP file: {zip_url}")
-    os.makedirs(output_dir, exist_ok=True)
-    local_zip = os.path.join(output_dir, os.path.basename(urlparse(zip_url).path))
-    log.append(f"📁 Saving to: {local_zip}")
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+        local_zip = os.path.join(output_dir, os.path.basename(urlparse(zip_url).path))
 
-    with requests.get(zip_url, stream=True, timeout=600) as r:  # 10분 timeout
-        r.raise_for_status()
-        total_size = int(r.headers.get("content-length", 0))
-        downloaded_size = 0
+        # Download ZIP file
+        background_tasks[task_id]["progress"] = f"Downloading ZIP file: {zip_url}"
+        with requests.get(zip_url, stream=True, timeout=600) as r:
+            r.raise_for_status()
+            total_size = int(r.headers.get("content-length", 0))
+            downloaded_size = 0
 
-        log.append(f"📊 Total file size: {total_size / (1024*1024):.1f} MB")
+            with open(local_zip, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
 
-        with open(local_zip, "wb") as f:
-            last_progress = -1
-            for chunk in r.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded_size += len(chunk)
+                        # Update progress every 10%
+                        if total_size > 0:
+                            progress = (downloaded_size / total_size) * 100
+                            if int(progress) % 10 == 0:
+                                background_tasks[task_id][
+                                    "progress"
+                                ] = f"Download progress: {progress:.1f}% ({downloaded_size / (1024*1024):.1f} MB / {total_size / (1024*1024):.1f} MB)"
 
-                    if total_size > 0:
-                        progress = (downloaded_size / total_size) * 100
-                        # Print every 10% (0%, 10%, 20%, ..., 100%)
-                        if int(progress) // 10 > last_progress // 10:
-                            log.append(
-                                f"📈 Download progress: {progress:.1f}% ({downloaded_size / (1024*1024):.1f} MB / {total_size / (1024*1024):.1f} MB)"
-                            )
-                            last_progress = int(progress)
-                    else:
-                        # If file size is unknown, print every 1MB
-                        if downloaded_size // (1024 * 1024) > last_progress // (
-                            1024 * 1024
-                        ):
-                            log.append(
-                                f"📈 Downloaded: {downloaded_size / (1024*1024):.1f} MB"
-                            )
-                            last_progress = downloaded_size
+        # Extract files
+        background_tasks[task_id]["progress"] = "Extracting PDF/DOC/DOCX files..."
+        extracted_files = []
+        with zipfile.ZipFile(local_zip, "r") as z:
+            file_list = [
+                name
+                for name in z.namelist()
+                if name.lower().endswith((".pdf", ".doc", ".docx"))
+            ]
+            for name in file_list:
+                z.extract(name, output_dir)
+                extracted_files.append(name)
 
-    log.append(f"✅ ZIP download completed: {local_zip}")
-    log.append("📂 Extracting PDF/DOC/DOCX files...")
+        # Mark as completed
+        background_tasks[task_id] = {
+            "status": "completed",
+            "progress": "Download and extraction completed successfully",
+            "files": extracted_files,
+            "output_dir": output_dir,
+            "zip_file": local_zip,
+        }
 
-    # Extract doc/pdf/docx from ZIP
-    extracted_files = []
-    with zipfile.ZipFile(local_zip, "r") as z:
-        file_list = [
-            name
-            for name in z.namelist()
-            if name.lower().endswith((".pdf", ".doc", ".docx"))
-        ]
-        total_files = len(file_list)
-
-        for i, name in enumerate(file_list, 1):
-            z.extract(name, output_dir)
-            extracted_files.append(name)
-            progress = (i / total_files) * 100
-            log.append(f"📄 Extracting: {progress:.0f}% - {name}")
-
-    log.append(f"✅ Download and extraction completed: {local_zip}")
-    log.append(f"📊 Total extracted files: {len(extracted_files)}")
-    return extracted_files
+    except Exception as e:
+        background_tasks[task_id] = {
+            "status": "error",
+            "progress": f"Error: {str(e)}",
+        }
 
 
 # Global download state
 download_state = {}
+background_tasks = {}
 
 
 @mcp.tool()
@@ -205,12 +192,12 @@ def check_3gpp_link(spec: str, release: str) -> str:
         }
 
         return (
-            f"✅ Link found for {spec} {release}!\n\n"
-            f"📄 Spec: {spec}\n"
-            f"🔄 Release: {release}\n"
-            f"🔗 ZIP Link: {zip_link}\n"
-            f"🆔 Download ID: {download_id}\n\n"
-            f"💡 Use start_3gpp_download with this download ID to begin downloading."
+            f"Link found for {spec} {release}!\n\n"
+            f"Spec: {spec}\n"
+            f"Release: {release}\n"
+            f"ZIP Link: {zip_link}\n"
+            f"Download ID: {download_id}\n\n"
+            f"Use download_3gpp_document with this download ID to begin downloading."
         )
     except Exception as e:
         return f"❌ Error occurred: {str(e)}"
@@ -220,13 +207,14 @@ def check_3gpp_link(spec: str, release: str) -> str:
 def download_3gpp_document(download_id: str, output_dir: str = "./downloads") -> str:
     """
     Download and extract a 3GPP specification document using a download ID from check_3gpp_link.
+    This will start the download in the background and return immediately.
 
     Args:
         download_id (str): Download ID from check_3gpp_link.
         output_dir (str, optional): Directory to save the extracted files. Defaults to "./downloads".
 
     Returns:
-        str: Download result with progress information and extracted files.
+        str: Task ID for checking download status.
     """
     try:
         if download_id not in download_state:
@@ -235,53 +223,68 @@ def download_3gpp_document(download_id: str, output_dir: str = "./downloads") ->
         info = download_state[download_id]
         zip_link = info["zip_link"]
 
-        # Get file size first
-        with requests.get(zip_link, stream=True, timeout=600) as r:  # 10분 timeout
-            r.raise_for_status()
-            total_size = int(r.headers.get("content-length", 0))
+        # Generate task ID
+        task_id = f"task_{download_id}_{int(time.time())}"
 
-        # Start download
-        os.makedirs(output_dir, exist_ok=True)
-        local_zip = os.path.join(output_dir, os.path.basename(urlparse(zip_link).path))
-
-        downloaded_size = 0
-        with requests.get(zip_link, stream=True, timeout=600) as r:  # 10분 timeout
-            r.raise_for_status()
-            with open(local_zip, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded_size += len(chunk)
-
-        # Extract files
-        extracted_files = []
-        with zipfile.ZipFile(local_zip, "r") as z:
-            file_list = [
-                name
-                for name in z.namelist()
-                if name.lower().endswith((".pdf", ".doc", ".docx"))
-            ]
-            for name in file_list:
-                z.extract(name, output_dir)
-                extracted_files.append(name)
+        # Start background download
+        thread = threading.Thread(
+            target=download_and_extract, args=(zip_link, output_dir, task_id)
+        )
+        thread.daemon = True
+        thread.start()
 
         # Clean up download state
         del download_state[download_id]
 
-        # Return result
-        files_info = "\n".join([f"  - {f}" for f in extracted_files])
         return (
-            f"✅ Download completed successfully!\n\n"
-            f"📄 Spec: {info['spec']}\n"
-            f"🔄 Release: {info['release']}\n"
-            f"📁 Output directory: {output_dir}\n"
-            f"📦 ZIP file: {os.path.basename(local_zip)}\n"
-            f"📊 File size: {total_size / (1024*1024):.1f} MB\n"
-            f"📄 Extracted files ({len(extracted_files)} files):\n{files_info}"
+            f"Download request completed. It will take several minutes to complete.\n\n"
+            f"Spec: {info['spec']}\n"
+            f"Release: {info['release']}\n"
+            f"Output directory: {os.path.abspath(output_dir)}\n"
+            f"Task ID: {task_id}\n\n"
+            f"Use check_download_status with this Task ID to monitor progress."
         )
 
     except Exception as e:
-        return f"❌ Error occurred: {str(e)}"
+        return f"❌ Failed to start download: {str(e)}"
+    finally:
+        # Clean up download state even if there was an error
+        if download_id in download_state:
+            del download_state[download_id]
+
+
+@mcp.tool()
+def check_download_status(task_id: str) -> str:
+    """
+    Check the status of a background download task.
+
+    Args:
+        task_id (str): Task ID from download_3gpp_document.
+
+    Returns:
+        str: Current status and progress of the download task.
+    """
+    if task_id not in background_tasks:
+        return f"❌ Task ID not found: {task_id}"
+
+    task = background_tasks[task_id]
+    status = task["status"]
+    progress = task["progress"]
+
+    if status == "running":
+        return f"Download in progress...\n\nStatus: {progress}"
+    elif status == "completed":
+        files = task.get("files", [])
+        files_info = "\n".join([f"  - {f}" for f in files])
+        return (
+            f"Download completed!\n\n"
+            f"Output directory: {task['output_dir']}\n"
+            f"Extracted files ({len(files)}):\n{files_info}"
+        )
+    elif status == "error":
+        return f"Download failed: {progress}"
+    else:
+        return f"Unknown status: {status}"
 
 
 @mcp.tool()
@@ -305,7 +308,7 @@ def list_available_specs(spec: str = "", release: str = "") -> str:
             doc_dir = f"{series}.{number}"
             doc_url = urljoin(base_url, doc_dir + "/")
 
-            print(f"Checking spec: {spec} at URL: {doc_url}")
+            # Checking spec at URL
 
             r = requests.get(doc_url)
             r.raise_for_status()
